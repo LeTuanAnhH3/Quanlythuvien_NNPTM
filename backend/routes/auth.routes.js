@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../config/db");
+const jwt = require("jsonwebtoken");
+const JWT_SECRET = "SECRET_KEY_CUA_BAN";
 
 router.post("/login", async (req, res) => {
   try {
@@ -24,15 +26,24 @@ router.post("/login", async (req, res) => {
     console.log("RESULT:", results);
 
     if (results.length > 0) {
+      const token = jwt.sign(
+        {
+          id: results[0].id_nhan_vien,
+          role: results[0].quyen,
+          name: results[0].ho_ten,
+        },
+        JWT_SECRET,
+        { expiresIn: "8h" },
+      );
       return res.json({
         success: true,
+        token,
         name: results[0].ho_ten,
-        role: results[0].quyen
+        role: results[0].quyen,
       });
     }
 
     res.json({ success: false });
-
   } catch (err) {
     console.error("🔥 LOGIN ERROR:", err);
     res.status(500).json({ success: false });
