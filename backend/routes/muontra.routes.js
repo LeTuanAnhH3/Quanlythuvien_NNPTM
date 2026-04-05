@@ -56,8 +56,22 @@ router.get("/find-book/:barcode", async (req, res) => {
 // 4. API Mượn sách (Chặn triệt để thẻ hết hạn)
 router.post("/muon", async (req, res) => {
   const { id_doc_gia, ma_vach_id, han_tra } = req.body;
-  const connection = await db.getConnection();
+
+  if (!id_doc_gia || !ma_vach_id) {
+    return res
+      .status(400)
+      .json({ error: "Vui lòng nhập đầy đủ thông tin mượn sách!" });
+  }
+
+  if (!han_tra || new Date(han_tra) <= new Date()) {
+    return res
+      .status(400)
+      .json({ error: "Ngày hạn trả phải là ngày trong tương lai!" });
+  }
+
+  let connection;
   try {
+    connection = await db.getConnection();
     await connection.beginTransaction();
 
     // KIỂM TRA HẠN THẺ ĐỘC GIẢ
@@ -103,18 +117,26 @@ router.post("/muon", async (req, res) => {
     await connection.commit();
     res.json({ success: true });
   } catch (err) {
-    await connection.rollback();
+    if (connection) await connection.rollback();
     res.status(400).json({ error: err.message });
   } finally {
-    connection.release();
+    if (connection) connection.release();
   }
 });
 
 // 5. API Trả sách & Tính phạt
 router.post("/tra", async (req, res) => {
   const { id_phieu, ma_vach_id } = req.body;
-  const connection = await db.getConnection();
+
+  if (!id_phieu || !ma_vach_id) {
+    return res
+      .status(400)
+      .json({ error: "Vui lòng nhập đầy đủ thông tin trả sách!" });
+  }
+
+  let connection;
   try {
+    connection = await db.getConnection();
     await connection.beginTransaction();
     const [info] = await connection.query(
       `
@@ -129,7 +151,10 @@ router.post("/tra", async (req, res) => {
       [id_phieu, ma_vach_id],
     );
 
-    if (info.length === 0) throw new Error("Không tìm thấy dữ liệu mượn");
+    if (info.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ error: "Không tìm thấy dữ liệu mượn!" });
+    }
 
     const data = info[0];
     const so_ngay_tre = data.tre > 0 ? data.tre : 0;
@@ -159,10 +184,10 @@ router.post("/tra", async (req, res) => {
       },
     });
   } catch (err) {
-    await connection.rollback();
+    if (connection) await connection.rollback();
     res.status(500).json({ error: err.message });
   } finally {
-    connection.release();
+    if (connection) connection.release();
   }
 });
 

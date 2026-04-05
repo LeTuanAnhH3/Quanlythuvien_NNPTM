@@ -9,7 +9,7 @@ function DashboardLayout() {
 
   if (!token) return <Navigate to="/" />;
 
-  if (location.pathname.includes("/nhanvien") && role !== "Admin") {
+  if (location.pathname.startsWith("/dashboard/nhanvien") && role !== "Admin") {
     alert("Bạn không có quyền truy cập khu vực này!");
     return <Navigate to="/dashboard" />;
   }

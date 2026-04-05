@@ -50,6 +50,11 @@ function NhanVien() {
       return;
     }
 
+    if (!editingId && !form.mat_khau) {
+      alert("Vui lòng nhập mật khẩu cho nhân viên mới!");
+      return;
+    }
+
     // Bóc tách dữ liệu sạch để đảm bảo Backend nhận đúng tên trường
     const dataToSubmit = {
       ho_ten: form.ho_ten,

@@ -29,6 +29,10 @@ app.use("/api/stats", verifyToken, statsRoutes);
 app.use("/uploads", express.static("uploads"));
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () =>
-  console.log(`🚀 Backend chạy tại http://localhost:${PORT}`),
-);
+if (require.main === module) {
+  app.listen(PORT, () =>
+    console.log(`🚀 Backend chạy tại http://localhost:${PORT}`),
+  );
+}
+
+module.exports = app;

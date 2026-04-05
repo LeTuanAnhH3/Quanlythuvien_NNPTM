@@ -19,6 +19,12 @@ router.post("/", adminOnly, async (req, res) => {
     const { id_nhan_vien, ho_ten, ten_dang_nhap, mat_khau, quyen, trang_thai } =
       req.body;
 
+    if (!id_nhan_vien || !ho_ten || !ten_dang_nhap || !mat_khau) {
+      return res
+        .status(400)
+        .json({ error: "Vui lòng nhập đầy đủ thông tin nhân viên!" });
+    }
+
     const sql =
       "INSERT INTO nhanvien (id_nhan_vien, ho_ten, ten_dang_nhap, mat_khau, quyen, trang_thai) VALUES (?, ?, ?, ?, ?, ?)";
     await db.query(sql, [
@@ -72,9 +78,13 @@ router.put("/:id", adminOnly, async (req, res) => {
 // 4. XÓA NHÂN VIÊN
 router.delete("/:id", adminOnly, async (req, res) => {
   try {
-    await db.query("DELETE FROM nhanvien WHERE id_nhan_vien=?", [
-      req.params.id,
-    ]);
+    const [result] = await db.query(
+      "DELETE FROM nhanvien WHERE id_nhan_vien=?",
+      [req.params.id],
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Không tìm thấy nhân viên!" });
+    }
     res.json({ success: true, message: "Đã xóa nhân viên!" });
   } catch (err) {
     res.status(500).json({ error: err.message });

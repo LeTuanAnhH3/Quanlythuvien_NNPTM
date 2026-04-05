@@ -65,7 +65,7 @@ function DauSach() {
       });
       fetchBooks();
     } catch (err) {
-      alert("Lỗi hệ thống!");
+      alert(err.response?.data?.error || "Lỗi hệ thống!");
     }
   };
 

@@ -6,12 +6,10 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 router.post("/login", async (req, res) => {
   try {
-    console.log("BODY:", req.body);
-
     const { username, password } = req.body;
 
     if (!username || !password) {
-      return res.json({ success: false });
+      return res.status(400).json({ success: false });
     }
 
     const sql = `
@@ -22,8 +20,6 @@ router.post("/login", async (req, res) => {
     `;
 
     const [results] = await db.query(sql, [username, password]);
-
-    console.log("RESULT:", results);
 
     if (results.length > 0) {
       const token = jwt.sign(
