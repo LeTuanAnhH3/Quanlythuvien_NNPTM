@@ -7,7 +7,10 @@ const muonTraRoutes = require("./routes/muontra.routes");
 const dauSachRoutes = require("./routes/dausach.routes"); 
 const docGiaRoutes = require("./routes/docgia.routes"); // ✅ 1. Đã thêm
 const reportRoutes = require("./routes/report.routes"); 
-
+const tacGiaRoutes = require("./routes/tacgia.routes");
+const nxbRoutes = require("./routes/nxb.routes");
+const viTriKeRoutes = require("./routes/vitrike.routes");
+const caiDatRoutes = require("./routes/caidat.routes");
 const app = express();
 app.use(cors({ origin: "http://localhost:5173" }));
 app.use(express.json());
@@ -19,6 +22,11 @@ app.use("/api/muontra", muonTraRoutes);
 app.use("/api/dausach", dauSachRoutes);
 app.use("/api/docgia", docGiaRoutes); // ✅ 2. Đã thêm (Phải khớp với http://localhost:5000/api/docgia)
 app.use("/api/report", reportRoutes); 
+app.use("/api/tacgia", tacGiaRoutes);
+app.use("/api/nxb", nxbRoutes);
+app.use("/api/vitrike", viTriKeRoutes);
+app.use("/api/caidat", caiDatRoutes);
+
 app.use('/uploads', express.static('uploads'));
 
 const PORT = 5000;
