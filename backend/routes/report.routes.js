@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../config/db");
-const XLSX = require("xlsx");
+const ExcelJS = require("exceljs");
 
 // API Xuất danh sách sinh viên đang nợ sách quá hạn
 router.get("/export-no-sach", async (req, res) => {
@@ -21,18 +21,32 @@ router.get("/export-no-sach", async (req, res) => {
     `);
 
     if (rows.length === 0) {
-      return res.status(404).json({ message: "Không có sinh viên nào nợ sách quá hạn." });
+      return res
+        .status(404)
+        .json({ message: "Không có sinh viên nào nợ sách quá hạn." });
     }
 
-    // Chuyển đổi dữ liệu sang format Excel
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "DanhSachNoSach");
+    // Tạo workbook ExcelJS và ghi buffer
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("DanhSachNoSach");
 
-    // Tạo buffer và gửi về client
-    const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
-    res.setHeader("Content-Disposition", "attachment; filename=BaoCao_NoSach.xlsx");
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    if (rows.length > 0) {
+      worksheet.columns = Object.keys(rows[0]).map((key) => ({
+        header: key,
+        key,
+      }));
+      rows.forEach((row) => worksheet.addRow(row));
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=BaoCao_NoSach.xlsx",
+    );
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
     res.send(buffer);
   } catch (err) {
     res.status(500).send("Lỗi xuất file: " + err.message);
