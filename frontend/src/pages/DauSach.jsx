@@ -5,13 +5,23 @@ function DauSach() {
   const [books, setBooks] = useState([]);
   const [categories, setCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // State cho các danh mục đổ vào Dropdown
+  const [metadata, setMetadata] = useState({
+    authors: [],
+    publishers: [],
+    shelves: []
+  });
+
   const [formData, setFormData] = useState({
     isbn: "",
     ten_sach: "",
-    tac_gia: "",
+    id_tac_gia: "",
+    id_nxb: "",
     id_the_loai: "",
     file: null,
   });
+  
   const [editingId, setEditingId] = useState(null);
   const [addCopyId, setAddCopyId] = useState(null);
   const [addCopyQty, setAddCopyQty] = useState(1);
@@ -19,7 +29,19 @@ function DauSach() {
   useEffect(() => {
     fetchBooks();
     fetchCategories();
+    loadMetadata();
   }, []);
+
+  const loadMetadata = async () => {
+    try {
+        const [tg, nxb, ke] = await Promise.all([
+            axios.get("http://localhost:5000/api/tacgia"),
+            axios.get("http://localhost:5000/api/nxb"),
+            axios.get("http://localhost:5000/api/vitrike")
+        ]);
+        setMetadata({ authors: tg.data, publishers: nxb.data, shelves: ke.data });
+    } catch (err) { console.error("Lỗi tải danh mục metadata"); }
+  };
 
   const fetchBooks = async () => {
     try {
@@ -74,11 +96,13 @@ function DauSach() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const data = new FormData();
-    data.append("isbn", formData.isbn);
-    data.append("ten_sach", formData.ten_sach);
-    data.append("tac_gia", formData.tac_gia);
-    data.append("id_the_loai", formData.id_the_loai);
-    if (formData.file) data.append("hinh_anh", formData.file);
+    Object.keys(formData).forEach(key => {
+        if (key === 'file') {
+            if (formData.file) data.append("hinh_anh", formData.file);
+        } else {
+            data.append(key, formData[key]);
+        }
+    });
 
     try {
       const url = editingId ? `/dausach/${editingId}` : "/dausach";
@@ -114,11 +138,14 @@ function DauSach() {
         />
       </div>
 
-      {/* FORM NHẬP LIỆU */}
+      {/* FORM NHẬP LIỆU HIỆN ĐẠI */}
       <div style={formCard}>
-        <h3 style={{ marginTop: 0, fontSize: "16px", color: "#5d78ff" }}>
-          {editingId ? "Cập nhật thông tin" : "Thêm đầu sách mới"}
-        </h3>
+        <div style={{ borderBottom: "1px solid #eee", marginBottom: "20px", paddingBottom: "10px" }}>
+            <span style={{ fontWeight: "700", color: editingId ? "#f1c40f" : "#5d78ff" }}>
+                {editingId ? "📝 CHẾ ĐỘ CHỈNH SỬA" : "➕ THÊM ĐẦU SÁCH MỚI"}
+            </span>
+        </div>
+        
         <form onSubmit={handleSubmit} style={formGrid}>
           <input
             style={inputStyle}
@@ -180,9 +207,12 @@ function DauSach() {
             )}
           </div>
 
-          <button type="submit" style={editingId ? btnUpdate : btnAdd}>
-            {editingId ? "Cập nhật" : "Thêm mới"}
-          </button>
+          <div style={{ display: "flex", gap: "10px", alignItems: "flex-end", height: "100%" }}>
+            <button type="submit" style={editingId ? btnUpdate : btnAdd}>
+              {editingId ? "Cập nhật" : "Thêm mới"}
+            </button>
+            {editingId && <button type="button" onClick={handleReset} style={btnCancel}>Hủy</button>}
+          </div>
         </form>
       </div>
 
@@ -192,10 +222,9 @@ function DauSach() {
           <thead>
             <tr style={theadStyle}>
               <th style={thStyle}>Ảnh</th>
-              <th style={thStyle}>ISBN</th>
-              <th style={thStyle}>Tên Sách</th>
-              <th style={thStyle}>Tác Giả</th>
-              <th style={thStyle}>Thể Loại</th>
+              <th style={thStyle}>Thông tin sách</th>
+              <th style={thStyle}>Tác giả</th>
+              <th style={thStyle}>Vị trí lưu trữ</th>
               <th style={thStyle}>Hành động</th>
             </tr>
           </thead>

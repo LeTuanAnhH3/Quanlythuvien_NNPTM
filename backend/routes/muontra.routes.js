@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const db = require("../config/db");
 
-// 1. Lấy danh sách đang mượn
+// 1. Lấy danh sách sách đang được mượn (Bao gồm cả ID độc giả để Frontend lọc)
 router.get("/dang-muon", async (req, res) => {
   try {
     const [rows] = await db.query(`
@@ -54,7 +54,7 @@ router.get("/find-book/:isbn", async (req, res) => {
   }
 });
 
-// 4. API Mượn sách (Chặn triệt để thẻ hết hạn)
+// 4. API Mượn sách - Xử lý logic nghiệp vụ & Ràng buộc từ bảng cài đặt
 router.post("/muon", async (req, res) => {
   const { id_doc_gia, isbn, han_tra } = req.body;
 
@@ -129,7 +129,7 @@ router.post("/muon", async (req, res) => {
   }
 });
 
-// 5. API Trả sách & Tính phạt
+// 5. API Trả sách - Tính tiền phạt tự động theo cấu hình
 router.post("/tra", async (req, res) => {
   const { id_phieu, ma_vach_id } = req.body;
 
