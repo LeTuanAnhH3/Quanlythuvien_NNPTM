@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import API from "../services/api";
 
 function DauSach() {
   const [books, setBooks] = useState([]);
@@ -19,11 +19,12 @@ function DauSach() {
     id_tac_gia: "",
     id_nxb: "",
     id_the_loai: "",
-    id_ke: "",
-    file: null 
+    file: null,
   });
   
   const [editingId, setEditingId] = useState(null);
+  const [addCopyId, setAddCopyId] = useState(null);
+  const [addCopyQty, setAddCopyQty] = useState(1);
 
   useEffect(() => {
     fetchBooks();
@@ -44,16 +45,52 @@ function DauSach() {
 
   const fetchBooks = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/dausach");
+      const res = await API.get("/dausach");
       setBooks(res.data);
-    } catch (err) { console.error("Lỗi tải sách"); }
+    } catch (err) {
+      console.error("Lỗi tải sách");
+    }
   };
 
   const fetchCategories = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/dausach/the-loai");
+      const res = await API.get("/dausach/the-loai");
       setCategories(res.data);
-    } catch (err) { console.error("Lỗi tải thể loại"); }
+    } catch (err) {
+      console.error("Lỗi tải thể loại");
+    }
+  };
+
+  const handleAddCopy = async (id_dau_sach) => {
+    if (!addCopyQty || addCopyQty < 1) {
+      alert("Số lượng phải lớn hơn 0!");
+      return;
+    }
+    try {
+      await API.post("/dausach/sinh-ma-vach", {
+        id_dau_sach,
+        so_luong: addCopyQty,
+      });
+      alert(`Thêm ${addCopyQty} bản sao thành công!`);
+      setAddCopyId(null);
+      setAddCopyQty(1);
+    } catch (err) {
+      alert(err.response?.data?.error || "Lỗi hệ thống!");
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Bạn chắc chắn muốn xóa đầu sách này?")) return;
+    try {
+      await API.delete(`/dausach/${id}`);
+      alert("Đã xóa đầu sách!");
+      fetchBooks();
+    } catch (err) {
+      alert(
+        "Lỗi: " +
+          (err.response?.data?.error || err.message || "Không thể xóa!"),
+      );
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -68,34 +105,35 @@ function DauSach() {
     });
 
     try {
-      const url = editingId 
-        ? `http://localhost:5000/api/dausach/${editingId}` 
-        : "http://localhost:5000/api/dausach";
-      
+      const url = editingId ? `/dausach/${editingId}` : "/dausach";
+
       const method = editingId ? "put" : "post";
-      await axios[method](url, data, { headers: { "Content-Type": "multipart/form-data" } });
+      await API[method](url, data, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
 
-      alert("🎉 Thao tác thành công!");
-      handleReset();
+      alert("Thao tác thành công!");
+      setEditingId(null);
+      setFormData({
+        isbn: "",
+        ten_sach: "",
+        tac_gia: "",
+        id_the_loai: "",
+        file: null,
+      });
       fetchBooks();
-    } catch (err) { alert("❌ Lỗi: " + err.response?.data?.error || "Hệ thống trục trặc"); }
-  };
-
-  const handleReset = () => {
-    setEditingId(null);
-    setFormData({ isbn: "", ten_sach: "", id_tac_gia: "", id_nxb: "", id_the_loai: "", id_ke: "", file: null });
+    } catch (err) {
+      alert(err.response?.data?.error || "Lỗi hệ thống!");
+    }
   };
 
   return (
     <div style={containerStyle}>
       <div style={headerStyle}>
-        <div>
-            <h2 style={{ margin: 0, color: "#2c3e50", fontSize: '24px' }}>📚 Quản lý Đầu sách</h2>
-            <p style={{ color: "#7f8c8d", margin: "5px 0 0 0" }}>Quản lý thông tin sách và vị trí lưu trữ</p>
-        </div>
-        <input 
-          style={searchInput} 
-          placeholder="🔍 Tìm tên sách hoặc mã ISBN..." 
+        <h2 style={{ margin: 0, color: "#2c3e50" }}>📚 Quản lý Đầu sách</h2>
+        <input
+          style={searchInput}
+          placeholder="Tìm tên sách hoặc tác giả..."
           onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
@@ -109,54 +147,64 @@ function DauSach() {
         </div>
         
         <form onSubmit={handleSubmit} style={formGrid}>
-          <div style={inputGroup}>
-            <label style={labelStyle}>Mã ISBN</label>
-            <input style={inputStyle} placeholder="Nhập ISBN..." value={formData.isbn} onChange={(e) => setFormData({...formData, isbn: e.target.value})} required />
-          </div>
+          <input
+            style={inputStyle}
+            placeholder="Mã ISBN"
+            value={formData.isbn}
+            onChange={(e) => setFormData({ ...formData, isbn: e.target.value })}
+            required
+          />
+          <input
+            style={inputStyle}
+            placeholder="Tên sách"
+            value={formData.ten_sach}
+            onChange={(e) =>
+              setFormData({ ...formData, ten_sach: e.target.value })
+            }
+            required
+          />
+          <input
+            style={inputStyle}
+            placeholder="Tác giả"
+            value={formData.tac_gia}
+            onChange={(e) =>
+              setFormData({ ...formData, tac_gia: e.target.value })
+            }
+            required
+          />
 
-          <div style={inputGroup}>
-            <label style={labelStyle}>Tên đầu sách</label>
-            <input style={inputStyle} placeholder="Nhập tên sách..." value={formData.ten_sach} onChange={(e) => setFormData({...formData, ten_sach: e.target.value})} required />
-          </div>
+          <select
+            style={inputStyle}
+            value={formData.id_the_loai}
+            onChange={(e) =>
+              setFormData({ ...formData, id_the_loai: e.target.value })
+            }
+            required
+          >
+            <option value="">-- Chọn thể loại --</option>
+            {categories.map((c) => (
+              <option key={c.id_the_loai} value={c.id_the_loai}>
+                {c.ten_the_loai}
+              </option>
+            ))}
+          </select>
 
-          <div style={inputGroup}>
-            <label style={labelStyle}>Tác giả</label>
-            <select style={inputStyle} value={formData.id_tac_gia} onChange={(e) => setFormData({...formData, id_tac_gia: e.target.value})} required>
-              <option value="">-- Chọn tác giả --</option>
-              {metadata.authors.map(a => <option key={a.id_tac_gia} value={a.id_tac_gia}>{a.ten_tac_gia}</option>)}
-            </select>
-          </div>
-
-          <div style={inputGroup}>
-            <label style={labelStyle}>Thể loại</label>
-            <select style={inputStyle} value={formData.id_the_loai} onChange={(e) => setFormData({...formData, id_the_loai: e.target.value})} required>
-              <option value="">-- Chọn thể loại --</option>
-              {categories.map(c => <option key={c.id_the_loai} value={c.id_the_loai}>{c.ten_the_loai}</option>)}
-            </select>
-          </div>
-
-          <div style={inputGroup}>
-            <label style={labelStyle}>Nhà xuất bản</label>
-            <select style={inputStyle} value={formData.id_nxb} onChange={(e) => setFormData({...formData, id_nxb: e.target.value})} required>
-              <option value="">-- Chọn NXB --</option>
-              {metadata.publishers.map(p => <option key={p.id_nxb} value={p.id_nxb}>{p.ten_nxb}</option>)}
-            </select>
-          </div>
-
-          <div style={inputGroup}>
-            <label style={labelStyle}>Vị trí (Kệ)</label>
-            <select style={inputStyle} value={formData.id_ke} onChange={(e) => setFormData({...formData, id_ke: e.target.value})} required>
-              <option value="">-- Chọn vị trí --</option>
-              {metadata.shelves.map(s => <option key={s.id_ke} value={s.id_ke}>{s.ten_ke} (Tầng {s.tang})</option>)}
-            </select>
-          </div>
-
-          <div style={{ ...inputGroup, gridColumn: "span 1" }}>
-            <label style={labelStyle}>Ảnh bìa</label>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <label style={fileLabel}>
-              {formData.file ? `✅ ${formData.file.name.substring(0,15)}...` : "📁 Tải ảnh lên"}
-              <input type="file" style={{ display: "none" }} onChange={(e) => setFormData({...formData, file: e.target.files[0]})} />
+              📁 Chọn ảnh bìa
+              <input
+                type="file"
+                style={{ display: "none" }}
+                onChange={(e) =>
+                  setFormData({ ...formData, file: e.target.files[0] })
+                }
+              />
             </label>
+            {formData.file && (
+              <span style={{ fontSize: "12px", color: "#2ecc71" }}>
+                ✔ {formData.file.name}
+              </span>
+            )}
           </div>
 
           <div style={{ display: "flex", gap: "10px", alignItems: "flex-end", height: "100%" }}>
@@ -181,44 +229,106 @@ function DauSach() {
             </tr>
           </thead>
           <tbody>
-            {books.filter(b => b.ten_sach.toLowerCase().includes(searchTerm.toLowerCase()) || b.isbn.includes(searchTerm)).map((b) => (
-              <tr key={b.id_dau_sach} style={trStyle}>
-                <td style={tdStyle}>
-                  {b.hinh_anh ? (
-                    <img src={`http://localhost:5000${b.hinh_anh}`} alt="book" style={imgPreview} />
-                  ) : (
-                    <div style={noImg}>Ảnh trống</div>
-                  )}
-                </td>
-                <td style={tdStyle}>
-                  <div style={{ fontWeight: "700", color: "#2c3e50" }}>{b.ten_sach}</div>
-                  <div style={{ fontSize: "12px", color: "#95a5a6" }}>ISBN: {b.isbn}</div>
-                  <span style={genreBadge}>{b.ten_the_loai}</span>
-                </td>
-                <td style={tdStyle}>
-                  <div style={{ color: "#34495e" }}>{b.ten_tac_gia || "Chưa cập nhật"}</div>
-                  <div style={{ fontSize: "12px", color: "#bdc3c7" }}>{b.ten_nxb}</div>
-                </td>
-                <td style={tdStyle}>
-                  <span style={shelfBadge}>
-                    📍 {b.ten_ke || "Kệ trống"} - Tầng {b.tang || "0"}
-                  </span>
-                </td>
-                <td style={tdStyle}>
-                  <button onClick={() => {
-                      setEditingId(b.id_dau_sach);
-                      setFormData({
-                          isbn: b.isbn, 
-                          ten_sach: b.ten_sach, 
-                          id_tac_gia: b.id_tac_gia, 
-                          id_nxb: b.id_nxb,
-                          id_the_loai: b.id_the_loai,
-                          id_ke: b.id_ke,
-                          file: null
-                      })}} style={btnEdit}>Sửa</button>
-                </td>
-              </tr>
-            ))}
+            {books
+              .filter((b) =>
+                b.ten_sach.toLowerCase().includes(searchTerm.toLowerCase()),
+              )
+              .map((b) => (
+                <tr key={b.id_dau_sach} style={trStyle}>
+                  <td style={tdStyle}>
+                    {b.hinh_anh ? (
+                      <img
+                        src={`http://localhost:5000${b.hinh_anh}`}
+                        alt="book"
+                        style={imgPreview}
+                      />
+                    ) : (
+                      <div style={noImg}>No Image</div>
+                    )}
+                  </td>
+                  <td style={tdStyle}>
+                    <span style={idBadge}>{b.isbn}</span>
+                  </td>
+                  <td style={{ ...tdStyle, fontWeight: "600" }}>
+                    {b.ten_sach}
+                  </td>
+                  <td style={tdStyle}>{b.tac_gia}</td>
+                  <td style={tdStyle}>
+                    <span style={genreBadge}>{b.ten_the_loai}</span>
+                  </td>
+                  <td style={tdStyle}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "6px",
+                      }}
+                    >
+                      <button
+                        onClick={() => {
+                          setEditingId(b.id_dau_sach);
+                          setFormData({
+                            isbn: b.isbn,
+                            ten_sach: b.ten_sach,
+                            tac_gia: b.tac_gia,
+                            id_the_loai: b.id_the_loai,
+                            file: null,
+                          });
+                        }}
+                        style={btnEdit}
+                      >
+                        Sửa
+                      </button>
+                      <button
+                        onClick={() =>
+                          setAddCopyId(
+                            addCopyId === b.id_dau_sach ? null : b.id_dau_sach,
+                          )
+                        }
+                        style={btnCopy}
+                      >
+                        + Bản sao
+                      </button>
+                      {addCopyId === b.id_dau_sach && (
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "4px",
+                            alignItems: "center",
+                          }}
+                        >
+                          <input
+                            type="number"
+                            min="1"
+                            max="50"
+                            value={addCopyQty}
+                            onChange={(e) =>
+                              setAddCopyQty(Number(e.target.value))
+                            }
+                            style={{
+                              ...inputStyle,
+                              width: "55px",
+                              padding: "5px",
+                            }}
+                          />
+                          <button
+                            onClick={() => handleAddCopy(b.id_dau_sach)}
+                            style={btnConfirm}
+                          >
+                            ✓
+                          </button>
+                        </div>
+                      )}
+                      <button
+                        onClick={() => handleDelete(b.id_dau_sach)}
+                        style={btnDelete}
+                      >
+                        Xóa
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
           </tbody>
         </table>
       </div>
@@ -226,33 +336,169 @@ function DauSach() {
   );
 }
 
-// --- CSS TRONG JS (Đồng bộ Style hiện đại) ---
-const containerStyle = { padding: "40px", background: "#f0f2f5", minHeight: "100vh", fontFamily: "'Inter', sans-serif" };
-const headerStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "30px" };
-const searchInput = { padding: "12px 20px", borderRadius: "12px", border: "none", width: "350px", outline: "none", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" };
+// --- CSS IN JS (ĐỒNG BỘ PROJECT) ---
+const containerStyle = {
+  padding: "30px",
+  background: "#f8faff",
+  minHeight: "100vh",
+};
+const headerStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginBottom: "25px",
+};
+const searchInput = {
+  padding: "10px 15px",
+  borderRadius: "10px",
+  border: "1px solid #e0e7ff",
+  width: "300px",
+  outline: "none",
+};
 
-const formCard = { background: "#fff", padding: "25px", borderRadius: "20px", boxShadow: "0 10px 30px rgba(0,0,0,0.04)", marginBottom: "30px" };
-const formGrid = { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "20px" };
-const inputGroup = { display: "flex", flexDirection: "column", gap: "8px" };
-const labelStyle = { fontSize: "13px", fontWeight: "600", color: "#64748b" };
-const inputStyle = { padding: "12px", borderRadius: "10px", border: "1px solid #e2e8f0", fontSize: "14px", outline: "none", transition: "0.3s" };
+const formCard = {
+  background: "#fff",
+  padding: "20px",
+  borderRadius: "16px",
+  boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+  marginBottom: "30px",
+};
+const formGrid = {
+  display: "grid",
+  gridTemplateColumns: "repeat(3, 1fr) 200px 150px 120px",
+  gap: "15px",
+  alignItems: "center",
+};
+const inputStyle = {
+  padding: "10px",
+  borderRadius: "8px",
+  border: "1px solid #ddd",
+  fontSize: "14px",
+  outline: "none",
+};
 
-const fileLabel = { background: "#f8fafc", color: "#6366f1", padding: "12px", borderRadius: "10px", cursor: "pointer", textAlign: "center", fontSize: "13px", fontWeight: "600", border: "2px dashed #e2e8f0" };
-const btnAdd = { background: "#6366f1", color: "#fff", border: "none", padding: "12px 25px", borderRadius: "10px", cursor: "pointer", fontWeight: "700", width: "100%" };
-const btnUpdate = { background: "#f59e0b", color: "#fff", border: "none", padding: "12px 25px", borderRadius: "10px", cursor: "pointer", fontWeight: "700", width: "100%" };
-const btnCancel = { background: "#94a3b8", color: "#fff", border: "none", padding: "12px 15px", borderRadius: "10px", cursor: "pointer", fontWeight: "700" };
+const fileLabel = {
+  background: "#f0f3ff",
+  color: "#5d78ff",
+  padding: "10px",
+  borderRadius: "8px",
+  cursor: "pointer",
+  textAlign: "center",
+  fontSize: "13px",
+  fontWeight: "600",
+  border: "1px dashed #5d78ff",
+};
+const btnAdd = {
+  background: "#2ecc71",
+  color: "#fff",
+  border: "none",
+  padding: "10px",
+  borderRadius: "8px",
+  cursor: "pointer",
+  fontWeight: "600",
+};
+const btnUpdate = {
+  background: "#f1c40f",
+  color: "#fff",
+  border: "none",
+  padding: "10px",
+  borderRadius: "8px",
+  cursor: "pointer",
+  fontWeight: "600",
+};
 
-const tableWrapper = { background: "#fff", borderRadius: "20px", boxShadow: "0 10px 30px rgba(0,0,0,0.04)", overflow: "hidden" };
+const tableWrapper = {
+  background: "#fff",
+  borderRadius: "16px",
+  boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+  overflow: "hidden",
+};
 const tableStyle = { width: "100%", borderCollapse: "collapse" };
-const theadStyle = { background: "#f8fafc" };
-const thStyle = { padding: "18px", textAlign: "left", color: "#64748b", fontSize: "12px", textTransform: "uppercase", letterSpacing: "1px" };
-const tdStyle = { padding: "18px", borderBottom: "1px solid #f1f5f9", fontSize: "14px" };
+const theadStyle = { background: "#fcfdff", borderBottom: "2px solid #f1f4f9" };
+const thStyle = {
+  padding: "15px",
+  textAlign: "left",
+  color: "#8898aa",
+  fontSize: "13px",
+  textTransform: "uppercase",
+};
+const tdStyle = {
+  padding: "15px",
+  borderBottom: "1px solid #f1f4f9",
+  fontSize: "14px",
+  color: "#32325d",
+};
 const trStyle = { transition: "0.2s" };
 
-const imgPreview = { width: "50px", height: "70px", objectFit: "cover", borderRadius: "8px", boxShadow: "0 4px 6px rgba(0,0,0,0.1)" };
-const noImg = { width: "50px", height: "70px", background: "#f1f5f9", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", color: "#94a3b8", textAlign: "center" };
-const genreBadge = { display: "inline-block", marginTop: "5px", background: "#e0e7ff", color: "#4338ca", padding: "2px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "700" };
-const shelfBadge = { background: "#f0fdf4", color: "#166534", padding: "6px 12px", borderRadius: "8px", fontSize: "12px", fontWeight: "600", border: "1px solid #bbf7d0" };
-const btnEdit = { background: "#eff6ff", color: "#2563eb", border: "none", padding: "8px 16px", borderRadius: "8px", cursor: "pointer", fontWeight: "600" };
+const imgPreview = {
+  width: "45px",
+  height: "60px",
+  objectFit: "cover",
+  borderRadius: "4px",
+  boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
+};
+const noImg = {
+  width: "45px",
+  height: "60px",
+  background: "#eee",
+  borderRadius: "4px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: "9px",
+  color: "#999",
+};
+const idBadge = {
+  background: "#e8f0fe",
+  color: "#1a73e8",
+  padding: "4px 8px",
+  borderRadius: "6px",
+  fontWeight: "700",
+  fontSize: "12px",
+};
+const genreBadge = {
+  background: "#f0f5ff",
+  color: "#1d39c4",
+  padding: "4px 10px",
+  borderRadius: "20px",
+  fontSize: "12px",
+  border: "1px solid #adc6ff",
+};
+const btnEdit = {
+  background: "#e1f5fe",
+  color: "#03a9f4",
+  border: "none",
+  padding: "6px 12px",
+  borderRadius: "6px",
+  cursor: "pointer",
+  fontWeight: "600",
+};
+const btnCopy = {
+  background: "#e8f5e9",
+  color: "#2e7d32",
+  border: "none",
+  padding: "6px 12px",
+  borderRadius: "6px",
+  cursor: "pointer",
+  fontWeight: "600",
+};
+const btnConfirm = {
+  background: "#2ecc71",
+  color: "#fff",
+  border: "none",
+  padding: "5px 10px",
+  borderRadius: "6px",
+  cursor: "pointer",
+  fontWeight: "700",
+};
+const btnDelete = {
+  background: "#fff1f0",
+  color: "#ff4d4f",
+  border: "1px solid #ffccc7",
+  padding: "6px 12px",
+  borderRadius: "6px",
+  cursor: "pointer",
+  fontWeight: "600",
+};
 
 export default DauSach;

@@ -1,33 +1,38 @@
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const { verifyToken } = require("./middleware/auth");
 const authRoutes = require("./routes/auth.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
 const nhanvienRoutes = require("./routes/nhanvien.routes");
-const muonTraRoutes = require("./routes/muontra.routes"); 
-const dauSachRoutes = require("./routes/dausach.routes"); 
-const docGiaRoutes = require("./routes/docgia.routes"); // ✅ 1. Đã thêm
-const reportRoutes = require("./routes/report.routes"); 
-const tacGiaRoutes = require("./routes/tacgia.routes");
-const nxbRoutes = require("./routes/nxb.routes");
-const viTriKeRoutes = require("./routes/vitrike.routes");
-const caiDatRoutes = require("./routes/caidat.routes");
+const muonTraRoutes = require("./routes/muontra.routes");
+const dauSachRoutes = require("./routes/dausach.routes");
+const docGiaRoutes = require("./routes/docgia.routes");
+const reportRoutes = require("./routes/report.routes");
+const statsRoutes = require("./routes/stats");
+
 const app = express();
-app.use(cors({ origin: "http://localhost:5173" }));
+app.use(cors({ origin: process.env.FRONTEND_ORIGIN }));
 app.use(express.json());
 
-app.use("/api", authRoutes); 
-app.use("/api/dashboard", dashboardRoutes);
-app.use("/api/nhanvien", nhanvienRoutes); 
-app.use("/api/muontra", muonTraRoutes);
-app.use("/api/dausach", dauSachRoutes);
-app.use("/api/docgia", docGiaRoutes); // ✅ 2. Đã thêm (Phải khớp với http://localhost:5000/api/docgia)
-app.use("/api/report", reportRoutes); 
-app.use("/api/tacgia", tacGiaRoutes);
-app.use("/api/nxb", nxbRoutes);
-app.use("/api/vitrike", viTriKeRoutes);
-app.use("/api/caidat", caiDatRoutes);
+// Route đăng nhập: công khai, không cần token
+app.use("/api", authRoutes);
 
-app.use('/uploads', express.static('uploads'));
+// Các route cần xác thực: gắn verifyToken trước
+app.use("/api/dashboard", verifyToken, dashboardRoutes);
+app.use("/api/nhanvien", verifyToken, nhanvienRoutes);
+app.use("/api/muontra", verifyToken, muonTraRoutes);
+app.use("/api/dausach", verifyToken, dauSachRoutes);
+app.use("/api/docgia", verifyToken, docGiaRoutes);
+app.use("/api/report", verifyToken, reportRoutes);
+app.use("/api/stats", verifyToken, statsRoutes);
+app.use("/uploads", express.static("uploads"));
 
-const PORT = 5000;
-app.listen(PORT, () => console.log(`🚀 Backend chạy tại http://localhost:${PORT}`));
+const PORT = process.env.PORT || 5000;
+if (require.main === module) {
+  app.listen(PORT, () =>
+    console.log(`🚀 Backend chạy tại http://localhost:${PORT}`),
+  );
+}
+
+module.exports = app;

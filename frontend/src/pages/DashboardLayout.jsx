@@ -2,13 +2,14 @@ import { Outlet, Navigate, useLocation } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 
 function DashboardLayout() {
+  const token = localStorage.getItem("token");
   const name = localStorage.getItem("name");
   const role = localStorage.getItem("role");
   const location = useLocation();
-  
-  if (!name) return <Navigate to="/" />;
 
-  if (location.pathname.includes("/nhanvien") && role !== "Admin") {
+  if (!token) return <Navigate to="/" />;
+
+  if (location.pathname.startsWith("/dashboard/nhanvien") && role !== "Admin") {
     alert("Bạn không có quyền truy cập khu vực này!");
     return <Navigate to="/dashboard" />;
   }
@@ -17,14 +18,16 @@ function DashboardLayout() {
     <div style={layoutContainer}>
       {/* Sidebar cố định bên trái với màu sắc theo ảnh mẫu */}
       <Sidebar />
-      
+
       {/* Phần nội dung bên phải có khoảng cách và nền sáng */}
       <main style={mainContentStyle}>
         {/* Header ẩn để hiển thị tên người dùng và vai trò nếu cần */}
         <div style={topNavStyle}>
-          <div style={{ color: "#7f8c8d" }}>Trang quản trị / {location.pathname.split('/').pop()}</div>
+          <div style={{ color: "#7f8c8d" }}>
+            Trang quản trị / {location.pathname.split("/").pop()}
+          </div>
           <div style={{ fontWeight: "600", color: "#2c3e50" }}>
-             👤 {name} <span style={roleBadgeStyle}>{role}</span>
+            👤 {name} <span style={roleBadgeStyle}>{role}</span>
           </div>
         </div>
 
@@ -42,7 +45,7 @@ const layoutContainer = {
   display: "flex",
   background: "#f4f7fe", // Nền hơi xanh xám nhạt hiện đại
   minHeight: "100vh",
-  fontFamily: "'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+  fontFamily: "'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
 };
 
 const mainContentStyle = {
@@ -51,7 +54,7 @@ const mainContentStyle = {
   padding: "20px 30px",
   transition: "all 0.3s ease",
   display: "flex",
-  flexDirection: "column"
+  flexDirection: "column",
 };
 
 const topNavStyle = {
@@ -59,12 +62,12 @@ const topNavStyle = {
   justifyContent: "space-between",
   alignItems: "center",
   padding: "15px 0",
-  marginBottom: "20px"
+  marginBottom: "20px",
 };
 
 const pageWrapper = {
   background: "transparent",
-  flex: 1
+  flex: 1,
 };
 
 const roleBadgeStyle = {
@@ -74,7 +77,7 @@ const roleBadgeStyle = {
   padding: "2px 8px",
   borderRadius: "12px",
   marginLeft: "8px",
-  textTransform: "uppercase"
+  textTransform: "uppercase",
 };
 
 export default DashboardLayout;
