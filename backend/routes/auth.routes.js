@@ -1,6 +1,12 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../config/db");
+<<<<<<< Updated upstream
+=======
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
+const JWT_SECRET = process.env.JWT_SECRET;
+>>>>>>> Stashed changes
 
 router.post("/login", async (req, res) => {
   try {
@@ -15,15 +21,31 @@ router.post("/login", async (req, res) => {
     const sql = `
       SELECT * FROM nhanvien 
       WHERE TRIM(ten_dang_nhap) = TRIM(?) 
-      AND TRIM(mat_khau) = TRIM(?) 
       AND TRIM(trang_thai) = 'DangLamViec'
     `;
 
-    const [results] = await db.query(sql, [username, password]);
+    const [results] = await db.query(sql, [username]);
 
+<<<<<<< Updated upstream
     console.log("RESULT:", results);
 
     if (results.length > 0) {
+=======
+    const valid =
+      results.length > 0 &&
+      (await bcrypt.compare(password, results[0].mat_khau));
+
+    if (valid) {
+      const token = jwt.sign(
+        {
+          id: results[0].id_nhan_vien,
+          role: results[0].quyen,
+          name: results[0].ho_ten,
+        },
+        JWT_SECRET,
+        { expiresIn: "8h" },
+      );
+>>>>>>> Stashed changes
       return res.json({
         success: true,
         name: results[0].ho_ten,
