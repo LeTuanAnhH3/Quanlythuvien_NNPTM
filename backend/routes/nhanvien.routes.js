@@ -3,10 +3,12 @@ const router = express.Router();
 const db = require("../config/db");
 const { adminOnly } = require("../middleware/auth");
 
-// 1. LẤY DANH SÁCH NHÂN VIÊN
+// 1. LẤY DANH SÁCH NHÂN VIÊN (ẩn nhân viên đã xóa)
 router.get("/", adminOnly, async (req, res) => {
   try {
-    const [results] = await db.query("SELECT * FROM nhanvien");
+    const [results] = await db.query(
+      "SELECT * FROM nhanvien WHERE trang_thai != 'DaXoa'",
+    );
     res.json(results);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -75,11 +77,25 @@ router.put("/:id", adminOnly, async (req, res) => {
   }
 });
 
-// 4. XÓA NHÂN VIÊN
+// 4. XÓA NHÂN VIÊN (soft delete - giữ nguyên lịch sử)
 router.delete("/:id", adminOnly, async (req, res) => {
   try {
+    const [dangXuLy] = await db.query(
+      `SELECT COUNT(*) AS total
+       FROM chitietphieumuon ct
+       JOIN phieumuon pm ON ct.id_phieu_muon = pm.id_phieu_muon
+       WHERE pm.id_nhan_vien = ? AND ct.ngay_tra_thuc_te IS NULL`,
+      [req.params.id],
+    );
+    if (dangXuLy[0].total > 0) {
+      return res
+        .status(400)
+        .json({
+          error: "Nhân viên đang có phiếu mượn chưa xử lý xong, không thể xóa!",
+        });
+    }
     const [result] = await db.query(
-      "DELETE FROM nhanvien WHERE id_nhan_vien=?",
+      "UPDATE nhanvien SET trang_thai = 'DaXoa' WHERE id_nhan_vien = ? AND trang_thai != 'DaXoa'",
       [req.params.id],
     );
     if (result.affectedRows === 0) {

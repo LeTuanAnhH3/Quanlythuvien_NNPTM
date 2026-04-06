@@ -4,7 +4,7 @@ import API from "../services/api";
 function MuonTra() {
   const [loanData, setLoanData] = useState({
     id_doc_gia: "",
-    ma_vach_id: "",
+    isbn: "",
     han_tra: "",
   });
   const [readerInfo, setReaderInfo] = useState({
@@ -30,8 +30,15 @@ function MuonTra() {
 
   // Kiểm tra độc giả & Hạn thẻ
   useEffect(() => {
-    if (loanData.id_doc_gia.length >= 4) {
-      API.get(`/muontra/find-reader/${loanData.id_doc_gia}`)
+    if (loanData.id_doc_gia.trim().length < 3) {
+      setReaderInfo({ name: "", status: "", isExpired: false });
+      return;
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      API.get(`/muontra/find-reader/${loanData.id_doc_gia.trim()}`, {
+        signal: controller.signal,
+      })
         .then((res) => {
           const expired = new Date(res.data.ngay_het_han_the) < new Date();
           setReaderInfo({
@@ -40,30 +47,53 @@ function MuonTra() {
             isExpired: expired,
           });
         })
-        .catch(() =>
-          setReaderInfo({
-            name: "❌ Không tìm thấy",
-            status: "",
-            isExpired: false,
-          }),
-        );
-    } else {
-      setReaderInfo({ name: "", status: "", isExpired: false });
-    }
+        .catch((err) => {
+          if (err.name !== "CanceledError" && err.code !== "ERR_CANCELED") {
+            setReaderInfo({
+              name: "❌ Không tìm thấy",
+              status: "",
+              isExpired: false,
+            });
+          }
+        });
+    }, 400);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [loanData.id_doc_gia]);
 
-  // Kiểm tra sách
+  // Kiểm tra sách theo ISBN
   useEffect(() => {
-    if (loanData.ma_vach_id.length >= 4) {
-      API.get(`/muontra/find-book/${loanData.ma_vach_id}`)
-        .then((res) =>
-          setBookInfo({ name: res.data.ten_sach, status: res.data.trang_thai }),
-        )
-        .catch(() => setBookInfo({ name: "❌ Không tìm thấy", status: "" }));
-    } else {
+    if (loanData.isbn.trim().length < 3) {
       setBookInfo({ name: "", status: "" });
+      return;
     }
-  }, [loanData.ma_vach_id]);
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      API.get(`/muontra/find-book/${loanData.isbn.trim()}`, {
+        signal: controller.signal,
+      })
+        .then((res) =>
+          setBookInfo({
+            name: res.data.ten_sach,
+            status:
+              res.data.so_luong_san_sang > 0
+                ? `✅ Còn ${res.data.so_luong_san_sang} bản`
+                : "❌ Hết sách",
+          }),
+        )
+        .catch((err) => {
+          if (err.name !== "CanceledError" && err.code !== "ERR_CANCELED") {
+            setBookInfo({ name: "❌ Không tìm thấy", status: "" });
+          }
+        });
+    }, 400);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [loanData.isbn]);
 
   const handleLoan = async () => {
     if (readerInfo.isExpired) {
@@ -71,10 +101,14 @@ function MuonTra() {
       return;
     }
     try {
-      const res = await API.post("/muontra/muon", loanData);
+      const res = await API.post("/muontra/muon", {
+        ...loanData,
+        id_doc_gia: loanData.id_doc_gia.trim(),
+        isbn: loanData.isbn.trim(),
+      });
       if (res.data.success) {
         alert("Mượn sách thành công!");
-        setLoanData({ id_doc_gia: "", ma_vach_id: "", han_tra: "" });
+        setLoanData({ id_doc_gia: "", isbn: "", han_tra: "" });
         fetchLoans();
       }
     } catch (err) {
@@ -138,13 +172,15 @@ function MuonTra() {
           <div style={inputWrapper}>
             <input
               style={inputStyle}
-              placeholder="Mã vạch sách"
-              value={loanData.ma_vach_id}
+              placeholder="ISBN sách"
+              value={loanData.isbn}
               onChange={(e) =>
-                setLoanData({ ...loanData, ma_vach_id: e.target.value })
+                setLoanData({ ...loanData, isbn: e.target.value })
               }
             />
-            <div style={hintStyle}>{bookInfo.name}</div>
+            <div style={hintStyle}>
+              {bookInfo.name} {bookInfo.status}
+            </div>
           </div>
           <div style={inputWrapper}>
             <input

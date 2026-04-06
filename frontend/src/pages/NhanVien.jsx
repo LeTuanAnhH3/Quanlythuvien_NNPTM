@@ -82,7 +82,10 @@ function NhanVien() {
       resetForm();
     } catch (err) {
       console.error("Lỗi cập nhật:", err);
-      alert("Có lỗi xảy ra khi lưu dữ liệu!");
+      alert(
+        "Lỗi: " +
+          (err.response?.data?.error || err.message || "Có lỗi xảy ra!"),
+      );
     }
   };
 
@@ -104,7 +107,10 @@ function NhanVien() {
       alert("Đã xoá nhân viên!");
       fetchData();
     } catch (err) {
-      console.error("Lỗi xoá:", err);
+      alert(
+        "Lỗi: " +
+          (err.response?.data?.error || err.message || "Không thể xóa!"),
+      );
     }
   };
 
@@ -185,7 +191,7 @@ function NhanVien() {
               style={inputStyle}
             >
               <option value="DangLamViec">Đang làm việc</option>
-              <option value="NghiViec">Nghỉ việc</option>
+              <option value="DaNghi">Nghỉ việc</option>
             </select>
           </div>
         </div>

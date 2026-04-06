@@ -42,6 +42,7 @@ router.get("/", async (req, res) => {
       SELECT d.*, t.ten_the_loai 
       FROM dausach d 
       LEFT JOIN theloai t ON d.id_the_loai = t.id_the_loai
+      WHERE d.da_xoa = 0
       ORDER BY d.id_dau_sach DESC
     `);
     res.json(rows);
@@ -103,51 +104,29 @@ router.put("/:id", upload.single("hinh_anh"), async (req, res) => {
 // ================== 5. XÓA ĐẦU SÁCH (TRANSACTION) ==================
 router.delete("/:id", async (req, res) => {
   const { id } = req.params;
-  let connection;
 
   try {
-    connection = await db.getConnection();
-    await connection.beginTransaction();
-
     // Kiểm tra sách đang mượn
-    const [dangMuon] = await connection.query(
-      "SELECT * FROM sach_vatly WHERE id_dau_sach = ? AND UPPER(trang_thai) = 'DANGMUON'",
+    const [dangMuon] = await db.query(
+      "SELECT COUNT(*) AS total FROM sach_vatly WHERE id_dau_sach = ? AND trang_thai = 'DangMuon'",
+      [id],
+    );
+    if (dangMuon[0].total > 0) {
+      return res.status(400).json({ error: "Không thể xóa! Có sách đang được mượn." });
+    }
+
+    const [result] = await db.query(
+      "UPDATE dausach SET da_xoa = 1 WHERE id_dau_sach = ? AND da_xoa = 0",
       [id],
     );
 
-    if (dangMuon.length > 0) {
-      await connection.rollback();
-      return res.status(400).json({
-        error: "Không thể xóa! Có sách đang được mượn.",
-      });
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Không tìm thấy đầu sách." });
     }
-
-    // Xóa bảng con
-    await connection.query("DELETE FROM sach_vatly WHERE id_dau_sach = ?", [
-      id,
-    ]);
-
-    // Xóa bảng cha
-    const [result] = await connection.query(
-      "DELETE FROM dausach WHERE id_dau_sach = ?",
-      [id],
-    );
-
-    await connection.commit();
-
-    if (result.affectedRows > 0) {
-      res.json({
-        success: true,
-        message: "Đã xóa đầu sách và mã vạch!",
-      });
-    } else {
-      res.status(404).json({ error: "Không tìm thấy đầu sách." });
-    }
+    res.json({ success: true, message: "Đã xóa đầu sách!" });
   } catch (err) {
-    if (connection) await connection.rollback();
     res.status(500).json({ error: err.message });
-  } finally {
-    if (connection) connection.release();
+  }
   }
 });
 

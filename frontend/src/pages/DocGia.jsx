@@ -51,9 +51,13 @@ function DocGia() {
     if (window.confirm(`Bạn có chắc muốn xóa độc giả mã: ${id}?`)) {
       try {
         await API.delete(`/docgia/${id}`);
+        alert("Đã xóa độc giả!");
         fetchReaders();
       } catch (err) {
-        alert(err.response?.data?.error || "Lỗi xóa!");
+        alert(
+          "Lỗi: " +
+            (err.response?.data?.error || err.message || "Không thể xóa!"),
+        );
       }
     }
   };

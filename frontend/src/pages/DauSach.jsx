@@ -13,6 +13,8 @@ function DauSach() {
     file: null,
   });
   const [editingId, setEditingId] = useState(null);
+  const [addCopyId, setAddCopyId] = useState(null);
+  const [addCopyQty, setAddCopyQty] = useState(1);
 
   useEffect(() => {
     fetchBooks();
@@ -34,6 +36,38 @@ function DauSach() {
       setCategories(res.data);
     } catch (err) {
       console.error("Lỗi tải thể loại");
+    }
+  };
+
+  const handleAddCopy = async (id_dau_sach) => {
+    if (!addCopyQty || addCopyQty < 1) {
+      alert("Số lượng phải lớn hơn 0!");
+      return;
+    }
+    try {
+      await API.post("/dausach/sinh-ma-vach", {
+        id_dau_sach,
+        so_luong: addCopyQty,
+      });
+      alert(`Thêm ${addCopyQty} bản sao thành công!`);
+      setAddCopyId(null);
+      setAddCopyQty(1);
+    } catch (err) {
+      alert(err.response?.data?.error || "Lỗi hệ thống!");
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Bạn chắc chắn muốn xóa đầu sách này?")) return;
+    try {
+      await API.delete(`/dausach/${id}`);
+      alert("Đã xóa đầu sách!");
+      fetchBooks();
+    } catch (err) {
+      alert(
+        "Lỗi: " +
+          (err.response?.data?.error || err.message || "Không thể xóa!"),
+      );
     }
   };
 
@@ -194,21 +228,75 @@ function DauSach() {
                     <span style={genreBadge}>{b.ten_the_loai}</span>
                   </td>
                   <td style={tdStyle}>
-                    <button
-                      onClick={() => {
-                        setEditingId(b.id_dau_sach);
-                        setFormData({
-                          isbn: b.isbn,
-                          ten_sach: b.ten_sach,
-                          tac_gia: b.tac_gia,
-                          id_the_loai: b.id_the_loai,
-                          file: null,
-                        });
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "6px",
                       }}
-                      style={btnEdit}
                     >
-                      Sửa
-                    </button>
+                      <button
+                        onClick={() => {
+                          setEditingId(b.id_dau_sach);
+                          setFormData({
+                            isbn: b.isbn,
+                            ten_sach: b.ten_sach,
+                            tac_gia: b.tac_gia,
+                            id_the_loai: b.id_the_loai,
+                            file: null,
+                          });
+                        }}
+                        style={btnEdit}
+                      >
+                        Sửa
+                      </button>
+                      <button
+                        onClick={() =>
+                          setAddCopyId(
+                            addCopyId === b.id_dau_sach ? null : b.id_dau_sach,
+                          )
+                        }
+                        style={btnCopy}
+                      >
+                        + Bản sao
+                      </button>
+                      {addCopyId === b.id_dau_sach && (
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "4px",
+                            alignItems: "center",
+                          }}
+                        >
+                          <input
+                            type="number"
+                            min="1"
+                            max="50"
+                            value={addCopyQty}
+                            onChange={(e) =>
+                              setAddCopyQty(Number(e.target.value))
+                            }
+                            style={{
+                              ...inputStyle,
+                              width: "55px",
+                              padding: "5px",
+                            }}
+                          />
+                          <button
+                            onClick={() => handleAddCopy(b.id_dau_sach)}
+                            style={btnConfirm}
+                          >
+                            ✓
+                          </button>
+                        </div>
+                      )}
+                      <button
+                        onClick={() => handleDelete(b.id_dau_sach)}
+                        style={btnDelete}
+                      >
+                        Xóa
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -351,6 +439,33 @@ const btnEdit = {
   background: "#e1f5fe",
   color: "#03a9f4",
   border: "none",
+  padding: "6px 12px",
+  borderRadius: "6px",
+  cursor: "pointer",
+  fontWeight: "600",
+};
+const btnCopy = {
+  background: "#e8f5e9",
+  color: "#2e7d32",
+  border: "none",
+  padding: "6px 12px",
+  borderRadius: "6px",
+  cursor: "pointer",
+  fontWeight: "600",
+};
+const btnConfirm = {
+  background: "#2ecc71",
+  color: "#fff",
+  border: "none",
+  padding: "5px 10px",
+  borderRadius: "6px",
+  cursor: "pointer",
+  fontWeight: "700",
+};
+const btnDelete = {
+  background: "#fff1f0",
+  color: "#ff4d4f",
+  border: "1px solid #ffccc7",
   padding: "6px 12px",
   borderRadius: "6px",
   cursor: "pointer",

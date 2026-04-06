@@ -35,16 +35,17 @@ router.get("/find-reader/:id", async (req, res) => {
   }
 });
 
-// 3. Tìm sách
-router.get("/find-book/:barcode", async (req, res) => {
+// 3. Tìm sách theo ISBN
+router.get("/find-book/:isbn", async (req, res) => {
   try {
     const [rows] = await db.query(
-      `
-            SELECT ds.ten_sach, sv.trang_thai 
-            FROM sach_vatly sv 
-            JOIN dausach ds ON sv.id_dau_sach = ds.id_dau_sach 
-            WHERE sv.ma_vach_id = ?`,
-      [req.params.barcode.toUpperCase()],
+      `SELECT ds.ten_sach,
+              COUNT(CASE WHEN sv.trang_thai = 'SanSang' THEN 1 END) AS so_luong_san_sang
+       FROM dausach ds
+       LEFT JOIN sach_vatly sv ON ds.id_dau_sach = sv.id_dau_sach
+       WHERE ds.isbn = ?
+       GROUP BY ds.id_dau_sach`,
+      [req.params.isbn.trim()],
     );
     if (rows.length > 0) res.json(rows[0]);
     else res.status(404).json({ message: "Không tìm thấy" });
@@ -55,9 +56,9 @@ router.get("/find-book/:barcode", async (req, res) => {
 
 // 4. API Mượn sách (Chặn triệt để thẻ hết hạn)
 router.post("/muon", async (req, res) => {
-  const { id_doc_gia, ma_vach_id, han_tra } = req.body;
+  const { id_doc_gia, isbn, han_tra } = req.body;
 
-  if (!id_doc_gia || !ma_vach_id) {
+  if (!id_doc_gia || !isbn) {
     return res
       .status(400)
       .json({ error: "Vui lòng nhập đầy đủ thông tin mượn sách!" });
@@ -89,14 +90,18 @@ router.post("/muon", async (req, res) => {
       );
     }
 
-    // KIỂM TRA TRẠNG THÁI SÁCH
-    const [book] = await connection.query(
-      "SELECT trang_thai FROM sach_vatly WHERE ma_vach_id = ?",
-      [ma_vach_id.toUpperCase()],
+    // TÌM BẢN VẬT LÝ CÒN SẴN SÀNG THEO ISBN
+    const [available] = await connection.query(
+      `SELECT sv.ma_vach_id FROM sach_vatly sv
+       JOIN dausach ds ON sv.id_dau_sach = ds.id_dau_sach
+       WHERE ds.isbn = ? AND sv.trang_thai = 'SanSang'
+       LIMIT 1`,
+      [isbn.trim()],
     );
-    if (book.length === 0) throw new Error("Sách không tồn tại");
-    if (book[0].trang_thai !== "SanSang")
-      throw new Error("Sách hiện đang được mượn");
+    if (available.length === 0)
+      throw new Error("Sách không tồn tại hoặc tất cả bản sao đang được mượn");
+
+    const selectedBarcode = available[0].ma_vach_id;
 
     // THỰC HIỆN MƯỢN
     const [phieu] = await connection.query(
@@ -106,12 +111,12 @@ router.post("/muon", async (req, res) => {
 
     await connection.query(
       "INSERT INTO chitietphieumuon (id_phieu, ma_vach_id) VALUES (?, ?)",
-      [phieu.insertId, ma_vach_id.toUpperCase()],
+      [phieu.insertId, selectedBarcode],
     );
 
     await connection.query(
       "UPDATE sach_vatly SET trang_thai = 'DangMuon' WHERE ma_vach_id = ?",
-      [ma_vach_id.toUpperCase()],
+      [selectedBarcode],
     );
 
     await connection.commit();

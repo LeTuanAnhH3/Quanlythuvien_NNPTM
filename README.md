@@ -1,67 +1,110 @@
 # Quản Lý Thư Viện
 
-A library management system built with React (Vite) for the frontend and Node.js/Express for the backend, using MySQL (MariaDB).
+Hệ thống quản lý thư viện xây dựng bằng React (Vite) cho frontend và Node.js/Express cho backend, sử dụng MySQL (MariaDB).
+
+---
+
+## Tính năng
+
+| Trang          | Chức năng                                                                                                                                                                                        |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Dashboard**  | Thống kê tổng hợp (số đầu sách, độc giả, lượt mượn, tiền phạt), biểu đồ xu hướng mượn theo ngày (AreaChart), biểu đồ thể loại (PieChart), top 5 sách mượn nhiều nhất, xuất báo cáo nợ sách Excel |
+| **Mượn / Trả** | Mượn sách theo ISBN (tự động chọn bản vật lý còn sẵn), kiểm tra hạn thẻ độc giả, trả sách tính phạt tự động 5.000đ/ngày trễ, danh sách đang mượn                                                 |
+| **Đầu sách**   | CRUD đầu sách, upload ảnh bìa (≤ 2MB), tạo bản sao vật lý (mã vạch BV001...), xóa mềm (chặn nếu có bản đang mượn)                                                                                |
+| **Độc giả**    | CRUD độc giả, xóa mềm (chặn nếu còn sách chưa trả)                                                                                                                                               |
+| **Nhân viên**  | CRUD nhân viên, xóa mềm (Admin only, chặn nếu còn phiếu chưa xử lý)                                                                                                                              |
+
+---
+
+## Công nghệ sử dụng
+
+### Backend
+
+| Package        | Mục đích                            |
+| -------------- | ----------------------------------- |
+| `express`      | Web framework                       |
+| `mysql2`       | Kết nối MySQL/MariaDB (Promise API) |
+| `jsonwebtoken` | JWT auth (token hết hạn sau 8 giờ)  |
+| `multer`       | Upload ảnh bìa sách                 |
+| `exceljs`      | Xuất báo cáo Excel                  |
+| `cors`         | Cross-origin request                |
+| `dotenv`       | Biến môi trường                     |
+
+### Frontend
+
+| Package            | Mục đích                                |
+| ------------------ | --------------------------------------- |
+| `react` + `vite`   | UI framework + build tool               |
+| `react-router-dom` | Client-side routing                     |
+| `axios`            | HTTP client                             |
+| `recharts`         | Biểu đồ dashboard (AreaChart, PieChart) |
 
 ---
 
 ## Prerequisites
 
-Make sure the following are installed on your machine before running the project:
-
-| Tool            | Version | Notes               |
+| Tool            | Version | Ghi chú             |
 | --------------- | ------- | ------------------- |
 | Node.js         | >= 18   | https://nodejs.org  |
 | MySQL / MariaDB | >= 10.4 | https://mariadb.org |
-| npm             | >= 9    | Comes with Node.js  |
+| npm             | >= 9    | Đi kèm Node.js      |
 
 ---
 
-## Quick Start (New Device)
+## Quick Start (Máy mới)
 
-> Follow these 5 steps in order — nothing else needs to be changed.
+> Làm theo thứ tự 5 bước sau.
 
-**Step 1 — Clone the repo**
+**Bước 1 — Clone repo**
 
 ```bash
 git clone <repo-url>
 cd Quanlythuvien_NNPTM
 ```
 
-**Step 2 — Create the backend environment file**
+**Bước 2 — Tạo file môi trường backend**
 
 ```bash
 cd backend
 copy .env.example .env
 ```
 
-Open `backend/.env` and fill in **only** these two values — everything else can stay as-is for local development:
+Mở `backend/.env` và điền **hai giá trị** này:
 
 ```
 DB_PASSWORD=your_mysql_password_here
 JWT_SECRET=any_long_random_string_you_choose
 ```
 
-**Step 3 — Import the database**
+**Bước 3 — Import database và chạy migrations**
 
-Open **phpMyAdmin** (or MySQL CLI), create a database named `librarydb`, then import the `librarydb(new).sql` file.
+Mở **phpMyAdmin** (hoặc MySQL CLI), tạo database tên `librarydb`, sau đó import file `librarydb(new).sql`.
 
 ```bash
-# or via CLI:
+# hoặc qua CLI:
 mysql -u root -p librarydb < "librarydb(new).sql"
 ```
 
-**Step 4 — Install dependencies**
+Then run the following ALTER statements to support soft-delete and enum extensions:
+
+```sql
+ALTER TABLE dausach ADD COLUMN da_xoa TINYINT(1) NOT NULL DEFAULT 0;
+ALTER TABLE nhanvien MODIFY COLUMN trang_thai ENUM('DangLamViec','DaNghi','DaXoa') DEFAULT 'DangLamViec';
+ALTER TABLE docgia MODIFY COLUMN trang_thai_the ENUM('HoatDong','BiKhoa','DaXoa') DEFAULT 'HoatDong';
+```
+
+**Bước 4 — Cài dependencies**
 
 ```bash
-# in /backend
+# trong /backend
 npm install
 
-# in /frontend (new terminal)
+# trong /frontend (terminal mới)
 cd ../frontend
 npm install
 ```
 
-**Step 5 — Run both servers**
+**Bước 5 — Khởi động cả hai server**
 
 ```bash
 # Terminal 1 — Backend (http://localhost:5000)
@@ -73,51 +116,148 @@ cd frontend
 npm run dev
 ```
 
-Open your browser at **http://localhost:5173** and log in with the default credentials below.
+Mở trình duyệt tại **http://localhost:5173** và đăng nhập bằng tài khoản mặc định bên dưới.
 
 ---
 
-## Project Structure
+## Cấu trúc dự án
 
 ```
 Quanlythuvien_NNPTM/
-├── backend/              # Express API server (port 5000)
-│   ├── config/db.js      # MySQL connection pool (reads from .env)
-│   ├── middleware/       # JWT auth middleware
-│   ├── routes/           # API route handlers
-│   ├── uploads/          # Uploaded book cover images
-│   ├── server.js         # Entry point
-│   ├── .env              # ⚠️ NOT in git — copy from .env.example and fill in
-│   └── .env.example      # Template — committed to git
-└── frontend/             # React + Vite app (port 5173)
-    ├── .env              # ✅ Committed — contains only the backend URL (no secrets)
-    └── src/
+├── backend/
+│   ├── config/
+│   │   └── db.js                  # MySQL connection pool (đọc từ .env)
+│   ├── middleware/
+│   │   └── auth.js                # verifyToken, adminOnly, checkRole
+│   ├── routes/
+│   │   ├── auth.routes.js         # POST /api/login
+│   │   ├── dashboard.routes.js    # GET /api/dashboard (stats + charts + danh sách sách)
+│   │   ├── dausach.routes.js      # CRUD /api/dausach + sinh mã vạch + upload ảnh
+│   │   ├── docgia.routes.js       # CRUD /api/docgia
+│   │   ├── muontra.routes.js      # Mượn, trả, tìm sách/độc giả
+│   │   ├── nhanvien.routes.js     # CRUD /api/nhanvien (xóa: Admin only)
+│   │   ├── report.routes.js       # GET /api/report/export-no-sach (Excel)
+│   │   └── stats.js               # GET /api/stats/summary
+│   ├── uploads/                   # Ảnh bìa sách được upload (served tĩnh)
+│   ├── server.js                  # Entry point
+│   ├── .env                       # ⚠️ KHÔNG có trong git — tạo thủ công
+│   └── .env.example               # Template — đã commit
+└── frontend/
+    ├── public/
+    ├── src/
+    │   ├── components/
+    │   │   └── Sidebar.jsx        # Sidebar điều hướng (ẩn nhanvien nếu ko phải Admin)
+    │   ├── pages/
+    │   │   ├── Login.jsx
+    │   │   ├── DashboardLayout.jsx  # Layout bọc tất cả trang dashboard
+    │   │   ├── DashboardHome.jsx    # Thống kê, biểu đồ, xuất Excel
+    │   │   ├── MuonTra.jsx          # Mượn / trả sách
+    │   │   ├── DauSach.jsx          # Quản lý đầu sách + bản sao
+    │   │   ├── DocGia.jsx           # Quản lý độc giả
+    │   │   └── NhanVien.jsx         # Quản lý nhân viên
+    │   ├── services/
+    │   │   └── api.js              # Axios instance (đọc VITE_API_URL, gắn Bearer token)
+    │   ├── App.jsx                 # Định nghĩa routes
+    │   └── main.jsx
+    ├── .env                        # ✅ Đã commit — chỉ chứa VITE_API_URL
+    └── vite.config.js
 ```
 
 ---
 
-## Setup
+## API Reference
 
-### 1. Import the Database
+Tất cả route (trừ `/api/login`) yêu cầu header `Authorization: Bearer <token>`.
 
-Import the SQL dump file into MySQL:
+### Auth
 
-```bash
-mysql -u root -p < "librarydb(new).sql"
-```
+| Method | Endpoint     | Mô tả                      |
+| ------ | ------------ | -------------------------- |
+| POST   | `/api/login` | Đăng nhập, trả về JWT (8h) |
 
-Or open **phpMyAdmin**, create a database named `librarydb`, and import the `.sql` file.
+### Dashboard
 
-### 2. Configure the Backend Environment
+| Method | Endpoint             | Mô tả                                          |
+| ------ | -------------------- | ---------------------------------------------- |
+| GET    | `/api/dashboard`     | Thống kê tổng hợp, biểu đồ, danh sách đầu sách |
+| GET    | `/api/stats/summary` | Tóm tắt số liệu (dùng cho widget nhỏ)          |
 
-Copy the example file and fill in your values:
+### Đầu sách
+
+| Method | Endpoint                    | Mô tả                                          |
+| ------ | --------------------------- | ---------------------------------------------- |
+| GET    | `/api/dausach`              | Danh sách đầu sách (loại trừ đã xóa)           |
+| GET    | `/api/dausach/the-loai`     | Danh sách thể loại                             |
+| POST   | `/api/dausach`              | Thêm đầu sách (multipart, có ảnh bìa)          |
+| PUT    | `/api/dausach/:id`          | Cập nhật đầu sách (multipart, có thể đổi ảnh)  |
+| DELETE | `/api/dausach/:id`          | Xóa mềm (chặn nếu có bản đang mượn)            |
+| POST   | `/api/dausach/sinh-ma-vach` | Tạo bản sao vật lý (`id_dau_sach`, `so_luong`) |
+
+### Độc giả
+
+| Method | Endpoint          | Mô tả                                |
+| ------ | ----------------- | ------------------------------------ |
+| GET    | `/api/docgia`     | Danh sách độc giả (loại trừ đã xóa)  |
+| POST   | `/api/docgia`     | Thêm độc giả                         |
+| PUT    | `/api/docgia/:id` | Cập nhật độc giả                     |
+| DELETE | `/api/docgia/:id` | Xóa mềm (chặn nếu còn sách chưa trả) |
+
+### Nhân viên
+
+| Method | Endpoint            | Quyền      | Mô tả                                   |
+| ------ | ------------------- | ---------- | --------------------------------------- |
+| GET    | `/api/nhanvien`     | Tất cả     | Danh sách nhân viên (loại trừ đã xóa)   |
+| POST   | `/api/nhanvien`     | Tất cả     | Thêm nhân viên                          |
+| PUT    | `/api/nhanvien/:id` | Tất cả     | Cập nhật nhân viên                      |
+| DELETE | `/api/nhanvien/:id` | Admin only | Xóa mềm (chặn nếu còn phiếu đang xử lý) |
+
+### Mượn / Trả
+
+| Method | Endpoint                       | Mô tả                                       |
+| ------ | ------------------------------ | ------------------------------------------- |
+| GET    | `/api/muontra/dang-muon`       | Danh sách sách đang được mượn               |
+| GET    | `/api/muontra/find-reader/:id` | Tìm độc giả theo mã (kiểm tra hạn thẻ)      |
+| GET    | `/api/muontra/find-book/:isbn` | Tìm sách theo ISBN (đếm bản còn sẵn)        |
+| POST   | `/api/muontra/muon`            | Mượn sách (`id_doc_gia`, `isbn`, `han_tra`) |
+| POST   | `/api/muontra/tra`             | Trả sách, tính phạt tự động (5.000đ/ngày)   |
+
+### Báo cáo
+
+| Method | Endpoint                     | Mô tả                                     |
+| ------ | ---------------------------- | ----------------------------------------- |
+| GET    | `/api/report/export-no-sach` | Xuất file Excel danh sách nợ sách quá hạn |
+
+### Static
+
+| Path                 | Mô tả                                  |
+| -------------------- | -------------------------------------- |
+| `/uploads/:filename` | Ảnh bìa sách (public, không cần token) |
+
+---
+
+## URL Frontend
+
+| Path                  | Trang                                                |
+| --------------------- | ---------------------------------------------------- |
+| `/`                   | Đăng nhập                                            |
+| `/dashboard`          | Dashboard — thống kê, biểu đồ                        |
+| `/dashboard/muontra`  | Mượn / trả sách                                      |
+| `/dashboard/docgia`   | Quản lý độc giả                                      |
+| `/dashboard/dausach`  | Quản lý đầu sách                                     |
+| `/dashboard/nhanvien` | Quản lý nhân viên (chỉ hiện trong sidebar với Admin) |
+
+---
+
+## Thiết lập chi tiết
+
+### Cấu hình Backend (`backend/.env`)
+
+Copy file mẫu và điền giá trị:
 
 ```bash
 cd backend
 copy .env.example .env
 ```
-
-Then open `backend/.env` and set your values:
 
 ```env
 JWT_SECRET=change_this_to_a_strong_random_string
@@ -129,76 +269,67 @@ PORT=5000
 FRONTEND_ORIGIN=http://localhost:5173
 ```
 
-> ⚠️ `backend/.env` is listed in `.gitignore` and is never committed.
-> You must create it manually on every new device.
-> The `backend/.env.example` file (committed to git) serves as the template.
+> ⚠️ `backend/.env` được liệt kê trong `.gitignore`, không bao giờ được commit.
+> Phải tạo thủ công trên mỗi máy mới.
 
-### 3. Configure the Frontend Environment
+### Biến môi trường Backend
 
-The `frontend/.env` file is already committed to git with default values:
+| Biến              | Mô tả                   | Ví dụ                   |
+| ----------------- | ----------------------- | ----------------------- |
+| `JWT_SECRET`      | Khóa ký JWT             | chuỗi ngẫu nhiên dài    |
+| `DB_HOST`         | Host MySQL              | `localhost`             |
+| `DB_USER`         | Username MySQL          | `root`                  |
+| `DB_PASSWORD`     | Password MySQL          | mật khẩu của bạn        |
+| `DB_NAME`         | Tên database            | `librarydb`             |
+| `PORT`            | Port backend lắng nghe  | `5000`                  |
+| `FRONTEND_ORIGIN` | URL frontend (cho CORS) | `http://localhost:5173` |
+
+### Cấu hình Frontend (`frontend/.env`)
+
+File đã được commit với giá trị mặc định:
 
 ```env
 VITE_API_URL=http://localhost:5000/api
 ```
 
-If you run the backend on a different host or port, update `VITE_API_URL` in `frontend/.env`.
-
-### 4. Install Dependencies and Start
-
-```bash
-# Backend
-cd backend
-npm install
-npm start
-# Runs on http://localhost:5000
-
-# Frontend (new terminal)
-cd frontend
-npm install
-npm run dev
-# Runs on http://localhost:5173
-```
+Nếu backend chạy trên host/port khác, sửa `VITE_API_URL` trong `frontend/.env`.
 
 ---
 
-## Environment Variables Reference
+## Tài khoản mặc định
 
-### `backend/.env` (copy from `.env.example`)
+| Trường        | Giá trị  |
+| ------------- | -------- |
+| Tên đăng nhập | `admin`  |
+| Mật khẩu      | `123456` |
+| Quyền         | Admin    |
 
-| Variable          | Description                       | Example                 |
-| ----------------- | --------------------------------- | ----------------------- |
-| `JWT_SECRET`      | Secret key for signing JWT tokens | any long random string  |
-| `DB_HOST`         | MySQL server host                 | `localhost`             |
-| `DB_USER`         | MySQL username                    | `root`                  |
-| `DB_PASSWORD`     | MySQL password                    | your password           |
-| `DB_NAME`         | Database name                     | `librarydb`             |
-| `PORT`            | Port the backend listens on       | `5000`                  |
-| `FRONTEND_ORIGIN` | URL of the frontend (for CORS)    | `http://localhost:5173` |
-
-### `frontend/.env` (committed — no secrets)
-
-| Variable       | Description                 | Default                     |
-| -------------- | --------------------------- | --------------------------- |
-| `VITE_API_URL` | Base URL of the backend API | `http://localhost:5000/api` |
+> Mật khẩu hiện được lưu dưới dạng **plaintext** trong database.
 
 ---
 
-## Default Login
+## Soft Delete
 
-| Field    | Value    |
-| -------- | -------- |
-| Username | `admin`  |
-| Password | `123456` |
-| Role     | Admin    |
+Xóa bản ghi **không xóa khỏi database** — dữ liệu lịch sử (phiếu mượn, báo cáo) được giữ lại.
 
-> Passwords are stored as **plaintext** in the database in the current version.
+| Entity    | Cơ chế                            | Filter trong GET                  |
+| --------- | --------------------------------- | --------------------------------- |
+| Đầu sách  | `da_xoa = 1` (cột TINYINT)        | `WHERE da_xoa = 0`                |
+| Độc giả   | `trang_thai_the = 'DaXoa'` (enum) | `WHERE trang_thai_the != 'DaXoa'` |
+| Nhân viên | `trang_thai = 'DaXoa'` (enum)     | `WHERE trang_thai != 'DaXoa'`     |
+
+Xóa bị **chặn** nếu entity còn lượt mượn đang hoạt động:
+
+- **Đầu sách**: chặn nếu có bản vật lý với `trang_thai = 'DangMuon'`
+- **Độc giả**: chặn nếu có `chitietphieumuon` liên kết với `ngay_tra_thuc_te IS NULL`
+- **Nhân viên**: chặn nếu có `chitietphieumuon` liên kết với `ngay_tra_thuc_te IS NULL`
 
 ---
 
 ## Port Reference
 
-| Service        | Port           |
-| -------------- | -------------- |
-| Backend API    | 5000           |
-| Frontend (dev) | 5173           |
-| MySQL          | 3306 (default) |
+| Service        | Port            |
+| -------------- | --------------- |
+| Backend API    | 5000            |
+| Frontend (dev) | 5173            |
+| MySQL          | 3306 (mặc định) |

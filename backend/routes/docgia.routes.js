@@ -2,11 +2,11 @@ const express = require("express");
 const router = express.Router();
 const db = require("../config/db");
 
-// 1. Lấy danh sách độc giả
+// 1. LẤy danh sách độc giả (ẩn độc giả đã xóa)
 router.get("/", async (req, res) => {
   try {
     const [rows] = await db.query(
-      "SELECT * FROM docgia ORDER BY id_doc_gia DESC",
+      "SELECT * FROM docgia WHERE trang_thai_the != 'DaXoa' ORDER BY id_doc_gia DESC",
     );
     res.json(rows);
   } catch (err) {
@@ -43,24 +43,30 @@ router.post("/", async (req, res) => {
   }
 });
 
-// 3. Xóa độc giả
+// 3. Xóa độc giả (soft delete - giữ nguyên lịch sử)
 router.delete("/:id", async (req, res) => {
   try {
-    const [result] = await db.query("DELETE FROM docgia WHERE id_doc_gia = ?", [
-      req.params.id,
-    ]);
+    const [dangMuon] = await db.query(
+      `SELECT COUNT(*) AS total
+       FROM chitietphieumuon ct
+       JOIN phieumuon pm ON ct.id_phieu_muon = pm.id_phieu_muon
+       WHERE pm.id_doc_gia = ? AND ct.ngay_tra_thuc_te IS NULL`,
+      [req.params.id],
+    );
+    if (dangMuon[0].total > 0) {
+      return res
+        .status(400)
+        .json({ error: "Độc giả đang có sách mượn chưa trả, không thể xóa!" });
+    }
+    const [result] = await db.query(
+      "UPDATE docgia SET trang_thai_the = 'DaXoa' WHERE id_doc_gia = ? AND trang_thai_the != 'DaXoa'",
+      [req.params.id],
+    );
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: "Không tìm thấy độc giả!" });
     }
     res.json({ success: true, message: "Đã xóa độc giả!" });
   } catch (err) {
-    if (err.code === "ER_ROW_IS_REFERENCED_2") {
-      return res
-        .status(400)
-        .json({
-          error: "Không thể xóa độc giả này (đã có lịch sử mượn sách)!",
-        });
-    }
     res.status(500).json({ error: "Lỗi hệ thống: " + err.message });
   }
 });

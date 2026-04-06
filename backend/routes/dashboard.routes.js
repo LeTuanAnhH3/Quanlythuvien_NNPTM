@@ -10,12 +10,17 @@ router.get("/", async (req, res) => {
       SELECT d.*, t.ten_the_loai 
       FROM dausach d 
       LEFT JOIN theloai t ON d.id_the_loai = t.id_the_loai
+      WHERE d.da_xoa = 0
       ORDER BY d.id_dau_sach DESC
     `);
 
     // B. LẤY THỐNG KÊ TỔNG QUAN (Thẻ số)
-    const [books] = await db.query("SELECT COUNT(*) as total FROM dausach");
-    const [readers] = await db.query("SELECT COUNT(*) as total FROM docgia");
+    const [books] = await db.query(
+      "SELECT COUNT(*) as total FROM dausach WHERE da_xoa = 0",
+    );
+    const [readers] = await db.query(
+      "SELECT COUNT(*) as total FROM docgia WHERE trang_thai_the != 'DaXoa'",
+    );
     const [borrowing] = await db.query(
       "SELECT COUNT(*) as total FROM chitietphieumuon WHERE ngay_tra_thuc_te IS NULL",
     );
