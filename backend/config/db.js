@@ -1,12 +1,12 @@
 const mysql = require("mysql2/promise");
 
 const db = mysql.createPool({
-  host: "localhost",
-  user: "root",
-  password: "", // Thay bằng mật khẩu của bạn nếu có
-  database: "librarydb", // Đảm bảo tên database này khớp với MySQL của bạn
+  host: process.env.DB_HOST || "localhost",
+  user: process.env.DB_USER || "root",
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME || "librarydb",
   waitForConnections: true,
-  connectionLimit: 10
+  connectionLimit: 10,
 });
 
 console.log("✅ MySQL Connected");

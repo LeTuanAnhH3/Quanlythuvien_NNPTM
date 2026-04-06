@@ -10,17 +10,22 @@ router.get("/", async (req, res) => {
       SELECT d.*, t.ten_the_loai 
       FROM dausach d 
       LEFT JOIN theloai t ON d.id_the_loai = t.id_the_loai
+      WHERE d.da_xoa = 0
       ORDER BY d.id_dau_sach DESC
     `);
 
     // B. LẤY THỐNG KÊ TỔNG QUAN (Thẻ số)
-    const [books] = await db.query("SELECT COUNT(*) as total FROM dausach");
-    const [readers] = await db.query("SELECT COUNT(*) as total FROM docgia");
+    const [books] = await db.query(
+      "SELECT COUNT(*) as total FROM dausach WHERE da_xoa = 0",
+    );
+    const [readers] = await db.query(
+      "SELECT COUNT(*) as total FROM docgia WHERE trang_thai_the != 'DaXoa'",
+    );
     const [borrowing] = await db.query(
-      "SELECT COUNT(*) as total FROM chitietphieumuon WHERE ngay_tra_thuc_te IS NULL"
+      "SELECT COUNT(*) as total FROM chitietphieumuon WHERE ngay_tra_thuc_te IS NULL",
     );
     const [fines] = await db.query(
-      "SELECT SUM(COALESCE(tien_phat_tre, 0)) as total FROM chitietphieumuon"
+      "SELECT SUM(COALESCE(tien_phat_tre, 0)) as total FROM chitietphieumuon",
     );
 
     // C. XU HƯỚNG MƯỢN THEO NGÀY (Biểu đồ miền/đường)
@@ -63,9 +68,8 @@ router.get("/", async (req, res) => {
       tienPhat: fines[0]?.total || 0,
       trendData: trendData.reverse(), // Đảo ngược để hiển thị từ cũ đến mới trên biểu đồ
       genreData: genreData || [],
-      topBooks: topBooks || []
+      topBooks: topBooks || [],
     });
-
   } catch (err) {
     console.error("🔥 DASHBOARD ERROR:", err);
     res.status(500).json({ error: err.message });
@@ -85,11 +89,16 @@ router.get("/the-loai", async (req, res) => {
 // --- 3. THÊM ĐẦU SÁCH MỚI ---
 router.post("/", async (req, res) => {
   const { isbn, ten_sach, tac_gia, id_the_loai } = req.body;
+  if (!isbn || !ten_sach || !tac_gia) {
+    return res
+      .status(400)
+      .json({ error: "Vui lòng nhập đầy đủ thông tin sách!" });
+  }
   try {
     const genreId = id_the_loai || 1;
     await db.query(
       "INSERT INTO dausach (isbn, ten_sach, tac_gia, id_the_loai) VALUES (?, ?, ?, ?)",
-      [isbn, ten_sach, tac_gia, genreId]
+      [isbn, ten_sach, tac_gia, genreId],
     );
     res.json({ success: true, message: "Thêm thành công!" });
   } catch (err) {
@@ -100,20 +109,40 @@ router.post("/", async (req, res) => {
 // --- 4. SINH MÃ VẠCH (SÁCH VẬT LÝ) ---
 router.post("/sinh-ma-vach", async (req, res) => {
   const { id_dau_sach, so_luong } = req.body;
+  const qty = parseInt(so_luong);
+
+  if (!id_dau_sach || !qty || qty < 1) {
+    return res.status(400).json({ error: "Dữ liệu không hợp lệ!" });
+  }
+
+  let connection;
   try {
-    const [last] = await db.query("SELECT ma_vach_id FROM sach_vatly ORDER BY ma_vach_id DESC LIMIT 1");
-    let lastNum = (last && last.length > 0) ? parseInt(last[0].ma_vach_id.replace("BV", "")) : 0;
-    
-    for (let i = 1; i <= so_luong; i++) {
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+
+    const [last] = await connection.query(
+      "SELECT ma_vach_id FROM sach_vatly ORDER BY ma_vach_id DESC LIMIT 1 FOR UPDATE",
+    );
+    const lastNum =
+      last && last.length > 0
+        ? parseInt(last[0].ma_vach_id.replace("BV", "")) || 0
+        : 0;
+
+    for (let i = 1; i <= qty; i++) {
       const newCode = "BV" + String(lastNum + i).padStart(3, "0");
-      await db.query(
-        "INSERT INTO sach_vatly (ma_vach_id, id_dau_sach, trang_thai) VALUES (?, ?, 'SanSang')", 
-        [newCode, id_dau_sach]
+      await connection.query(
+        "INSERT INTO sach_vatly (ma_vach_id, id_dau_sach, trang_thai) VALUES (?, ?, 'SanSang')",
+        [newCode, id_dau_sach],
       );
     }
+
+    await connection.commit();
     res.json({ success: true });
   } catch (err) {
+    if (connection) await connection.rollback();
     res.status(500).json({ error: err.message });
+  } finally {
+    if (connection) connection.release();
   }
 });
 
